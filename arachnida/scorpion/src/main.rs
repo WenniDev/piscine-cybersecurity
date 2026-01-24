@@ -1,7 +1,8 @@
+mod exif;
 mod image;
 
 use clap::Parser;
-use image::Image;
+use image::parse_image_type;
 
 #[derive(Parser)]
 #[command(name = "scorpion")]
@@ -25,18 +26,29 @@ fn main() {
             }
         };
 
-        let img = match Image::try_from(data.as_slice()) {
-            Ok(i) => i,
+        let img = match parse_image_type(&data) {
+            Ok((_, i)) => i,
             Err(_) => {
                 eprintln!("Unknown or unsupported image format");
                 continue;
             }
         };
 
-        if let Some(exif_data) = img.find_exif(data.as_slice()) {
-            println!("Found EXIF data of length: {}", exif_data.len());
-        } else {
-            println!("No EXIF data found.");
-        }
+        let exif_data = match img.find_tiff_header(data.as_slice()) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Error extracting EXIF data: {}", e);
+                continue;
+            }
+        };
+
+        let tiff_header = match exif::parse_tiff_header(exif_data.as_slice()) {
+            Ok((_, hd)) => hd,
+            Err(e) => {
+                eprintln!("Error parsing tiff header: {}", e);
+                continue;
+            }
+        };
+        println!("Byte order: {:?}", tiff_header);
     }
 }
