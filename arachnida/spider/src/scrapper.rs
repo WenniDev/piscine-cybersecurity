@@ -1,16 +1,16 @@
 use anyhow::Result;
 use log::{error, info, warn};
 use regex::Regex;
-use std::{collections::HashSet, fs::File, io::Write};
+use std::{collections::HashSet, fs::File, io::Write, sync::LazyLock};
 use url::Url;
 
-const HREF_REGEX: &str = r#"href="([^"]+)""#;
-const IMG_REGEX: &str = r#"(?:src|href|content)="(([^"]+)(?:\.(?:png|jpeg|jpg|gif|bmp)))""#;
+static HREF_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"href="([^"]+)""#).unwrap());
+static IMG_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?:src|href|content)="(([^"]+)(?:\.(?:png|jpeg|jpg|gif|bmp)))""#).unwrap()
+});
 
 pub struct Scrapper {
     output: String,
-    regex_img: Regex,
-    regex_href: Regex,
     already_scrapped: HashSet<String>,
 }
 
@@ -18,8 +18,6 @@ impl Scrapper {
     pub fn new(output: String) -> Self {
         Scrapper {
             output,
-            regex_img: Regex::new(IMG_REGEX).unwrap(),
-            regex_href: Regex::new(HREF_REGEX).unwrap(),
             already_scrapped: HashSet::new(),
         }
     }
@@ -74,7 +72,7 @@ impl Scrapper {
 
         let content = self.get_content(url.as_str())?;
 
-        for cap in self.regex_img.clone().captures_iter(&content) {
+        for cap in IMG_REGEX.captures_iter(&content) {
             let image_url = cap.get(1).unwrap().as_str();
             info!("Downloading image ({}) `{}`", depth, image_url);
             if let Ok(image_url) = url.join(image_url) {
@@ -84,7 +82,7 @@ impl Scrapper {
             }
         }
 
-        for cap in self.regex_href.clone().captures_iter(&content) {
+        for cap in HREF_REGEX.captures_iter(&content) {
             let next_url = cap.get(1).unwrap().as_str();
             info!("Scraping ({}) {}", depth, next_url);
             if let Ok(new_url) = url.join(next_url) {
