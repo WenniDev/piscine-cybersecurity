@@ -4,6 +4,8 @@ use nom::{
     number::complete::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32},
 };
 
+use crate::image::{ImageType, parse_image_type};
+
 enum Tags {
     ImageWidth,
     ImageLength,
@@ -133,10 +135,39 @@ struct IfdEntry {
     value: Value,
 }
 
+pub struct ExifParser<'a> {
+    byte_order: ByteOrder,
+    image_type: ImageType,
+    data: &'a [u8],
+}
+
+impl<'a> ExifParser<'a> {
+    pub fn new(file_bytes: &'a [u8]) -> Self {
+        let (data, image_type) = parse_image_type(file_bytes).unwrap();
+        let data = image_type.find_tiff_header(data).unwrap();
+
+        ExifParser {
+            byte_order: ByteOrder::new(file_bytes),
+            image_type,
+            data,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ByteOrder(bool); // true = little endian
 
 impl ByteOrder {
+    fn new(input: &[u8]) -> Self {
+        let (input, marker) =
+            take::<usize, &[u8], nom::error::Error<&[u8]>>(2usize)(input).unwrap();
+        match marker {
+            b"II" => ByteOrder(true),
+            b"MM" => ByteOrder(false),
+            _ => panic!("Invalid byte order"),
+        }
+    }
+
     fn u16<'a>(&self, input: &'a [u8]) -> IResult<&'a [u8], u16> {
         if self.0 { le_u16(input) } else { be_u16(input) }
     }

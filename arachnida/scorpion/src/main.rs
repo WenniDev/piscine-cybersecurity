@@ -42,8 +42,8 @@ fn main() {
             }
         };
 
-        let tiff_header = match exif::parse_tiff_header(exif_data.as_slice()) {
-            Ok((_, hd)) => hd,
+        let tiff_header = match exif::parse_tiff_header(exif_data) {
+            Ok((_, offset)) => offset,
             Err(e) => {
                 eprintln!("Error parsing tiff header: {}", e);
                 continue;

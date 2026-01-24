@@ -77,7 +77,7 @@ pub fn parse_image_type(input: &[u8]) -> IResult<&[u8], ImageType> {
 }
 
 impl ImageType {
-    pub fn find_tiff_header(&self, input: &[u8]) -> Result<Vec<u8>> {
+    pub fn find_tiff_header<'a>(&self, input: &'a [u8]) -> Result<&'a [u8]> {
         match self {
             ImageType::Jpeg => jpeg::find_tiff_header(input),
             ImageType::Png => png::find_tiff_header(input),
@@ -94,7 +94,7 @@ mod jpeg {
     const MARKER_PREFIX: &[u8] = &[0xFF];
     const EXIF_HEADER: &[u8] = b"Exif\0\0";
 
-    pub fn find_tiff_header(input: &[u8]) -> Result<Vec<u8>> {
+    pub fn find_tiff_header(input: &[u8]) -> Result<&[u8]> {
         let (mut input, _) = tag_bytes(SOI)(input)
             .ok()
             .ok_or(ExifError::NoStartOfImage)?;
@@ -115,7 +115,7 @@ mod jpeg {
                         .ok_or(ExifError::InvalidFormat)?;
 
                     if data.starts_with(EXIF_HEADER) {
-                        return Ok(data[6..].to_vec());
+                        return Ok(&data[6..]);
                     }
                     input = &rest[data_len..];
                 }
@@ -137,7 +137,7 @@ mod png {
     use super::{ExifError, Result};
     use super::{magic, parse::*};
 
-    pub fn find_tiff_header(input: &[u8]) -> Result<Vec<u8>> {
+    pub fn find_tiff_header(input: &[u8]) -> Result<&[u8]> {
         let (mut input, _) = tag_bytes(magic::PNG)(input)
             .ok()
             .ok_or(ExifError::InvalidFormat)?;
@@ -151,7 +151,7 @@ mod png {
             let (rest, _crc) = take_n(4)(rest).ok().ok_or(ExifError::InvalidFormat)?;
 
             match chunk_type {
-                b"eXIf" => return Ok(chunk_data.to_vec()),
+                b"eXIf" => return Ok(chunk_data),
                 b"IEND" => return Err(ExifError::ExifNotFound),
                 _ => input = rest,
             }
