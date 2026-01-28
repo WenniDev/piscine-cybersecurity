@@ -50,7 +50,7 @@ mod parse {
 }
 
 mod magic {
-    pub const JPEG: &[u8] = &[0xFF, 0xD8, 0xFF];
+    pub const JPEG: &[u8] = &[0xFF, 0xD8];
     pub const PNG: &[u8] = &[0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1A, b'\n'];
     pub const GIF87A: &[u8] = b"GIF87a";
     pub const GIF89A: &[u8] = b"GIF89a";
@@ -106,7 +106,6 @@ mod jpeg {
             let (rest, marker) = take_n(1)(rest).ok().ok_or(ExifError::NoMarkerFound)?;
 
             match marker[0] {
-                // APP1 - potentiellement EXIF
                 0xE1 => {
                     let (rest, length) = u16_be(rest).ok().ok_or(ExifError::InvalidFormat)?;
                     let data_len = (length - 2) as usize;
@@ -119,11 +118,8 @@ mod jpeg {
                     }
                     input = &rest[data_len..];
                 }
-                // EOI ou SOS - fin de la recherche
                 0xD9 | 0xDA => return Err(ExifError::ExifNotFound),
-                // RST markers ou TEM - pas de longueur
                 0xD0..=0xD7 | 0x01 => input = rest,
-                // Autre segment avec longueur
                 _ => {
                     let (rest, length) = u16_be(rest).ok().ok_or(ExifError::InvalidFormat)?;
                     input = &rest[(length - 2) as usize..];
