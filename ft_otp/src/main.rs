@@ -7,11 +7,29 @@ use std::{env, fs};
 #[derive(Parser)]
 #[command(name = "ft_otp")]
 struct Cli {
-    #[arg(short = 'g', value_name = "FILE", conflicts_with = "key")]
+    #[arg(
+        short = 'g',
+        value_name = "FILE",
+        conflicts_with = "key",
+        help = "Generate an encrypted key file from a 64 hexadecimal key"
+    )]
     generate: Option<String>,
 
-    #[arg(short = 'k', value_name = "FILE", conflicts_with = "generate")]
+    #[arg(
+        short = 'k',
+        value_name = "FILE",
+        conflicts_with = "generate",
+        help = "Use an encrypted key file to generate a TOTP code"
+    )]
     key: Option<String>,
+
+    #[arg(
+        short = 'q',
+        conflicts_with = "key",
+        default_value_t = false,
+        help = "Output the TOTP code as a QR code"
+    )]
+    qrcode: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -19,7 +37,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if cli.generate.is_none() && cli.key.is_none() {
-        anyhow::bail!("Error: You must specify either -g or -k");
+        anyhow::bail!("Error: You must at least specify either -g or -k");
     }
 
     if let Some(file_path) = cli.generate {
@@ -37,6 +55,15 @@ fn main() -> anyhow::Result<()> {
 
         let filename = "ft_otp.key";
         fs::write(filename, &encrypted_key)?;
+
+        if cli.qrcode {
+            let hex_key = hex::decode(&key).unwrap();
+            let base32_key = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &hex_key);
+            let otp_uri = format!("otpauth://totp/ft_otp?secret={}&issuer=ft_otp", base32_key);
+            let code = qrcode::QrCode::new(otp_uri.as_bytes())?;
+            let image = code.render::<qrcode::render::unicode::Dense1x2>().build();
+            println!("{}", image);
+        }
 
         println!("Key was successfully saved in {}", filename);
     }
