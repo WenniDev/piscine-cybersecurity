@@ -1,5 +1,6 @@
 mod cipher;
 mod totp;
+mod tui;
 
 use clap::Parser;
 use std::{env, fs};
@@ -24,12 +25,12 @@ struct Cli {
     key: Option<String>,
 
     #[arg(
-        short = 'q',
-        conflicts_with = "key",
+        short = 't',
+        requires = "generate",
         default_value_t = false,
-        help = "Output the TOTP code as a QR code"
+        help = "Display a TUI with QR code, current OTP, and countdown"
     )]
-    qrcode: bool,
+    tui: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -41,7 +42,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     if let Some(file_path) = cli.generate {
-        let data = fs::read(file_path)?;
+        let data = fs::read(&file_path)?;
         let raw_key = String::from_utf8(data.clone())?;
         let key = raw_key.trim();
 
@@ -55,17 +56,17 @@ fn main() -> anyhow::Result<()> {
 
         let filename = "ft_otp.key";
         fs::write(filename, &encrypted_key)?;
-
-        if cli.qrcode {
-            let hex_key = hex::decode(&key).unwrap();
-            let base32_key = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &hex_key);
-            let otp_uri = format!("otpauth://totp/ft_otp?secret={}&issuer=ft_otp", base32_key);
-            let code = qrcode::QrCode::new(otp_uri.as_bytes())?;
-            let image = code.render::<qrcode::render::unicode::Dense1x2>().build();
-            println!("{}", image);
-        }
-
         println!("Key was successfully saved in {}", filename);
+
+        let hex_key = hex::decode(&key).unwrap();
+        let base32_key = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &hex_key);
+        let otp_uri = format!("otpauth://totp/ft_otp?secret={}&issuer=ft_otp", base32_key);
+
+        if cli.tui {
+            let code = qrcode::QrCode::new(otp_uri.as_bytes())?;
+            let qr_string = code.render::<qrcode::render::unicode::Dense1x2>().build();
+            tui::run_tui(&hex_key, &qr_string)?;
+        }
     }
 
     if let Some(file_path) = cli.key {
