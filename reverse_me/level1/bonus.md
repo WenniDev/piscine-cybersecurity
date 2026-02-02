@@ -11,7 +11,7 @@ Afin de le rendre valide avec n'importe quel mot de passe, on peut le modifier a
 strcmp(input, input)
 ```
 
-## Solution
+## Patch
 1. Ouvrir le binaire
 2. Trouver le strcmp
 3. Trouver l'instruction mov qui place le second argument
