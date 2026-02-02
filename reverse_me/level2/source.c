@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-int ok() {
-    return puts("Good job.");
-}
-
 void no() {
     puts("Nope.");
     exit(1);
@@ -20,6 +16,10 @@ int xd() {
     return puts("Author gi ex si im fallat istius. Refutent supposui qua sim "
     "nihilque. Me ob omni ideo gnum casu. Gi supersunt colligere inhaereat me sapientia "
     "is delaberer. Rom facillimam rem expe");
+}
+
+int ok() {
+    return puts("Good job.");
 }
 
 int main() {
